@@ -149,6 +149,9 @@ module.exports = async function handler(req, res) {
   console.log(
     `[webhook] update ${updateId} from ${fromId} text="${textPreview}"`,
   );
+  try {
+    console.log("[webhook] raw body:", JSON.stringify(req.body).slice(0, 3000));
+  } catch (_) {}
 
   const tStart = Date.now();
 

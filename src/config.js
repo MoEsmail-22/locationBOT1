@@ -30,6 +30,8 @@ const commands = [
   { command: "start", description: "فتح القائمة" },
   { command: "help", description: "عرض المساعدة" },
   { command: "myid", description: "إظهار رقم حسابك" },
+  { command: "ping", description: "اختبار الاتصال" },
+  { command: "whoami", description: "معلومات الحساب" },
   { command: "search", description: "بحث برقم الهاتف أو الاسم" },
   { command: "stats", description: "إحصائيات البيانات" },
   { command: "dbstatus", description: "حالة قاعدة البيانات" },

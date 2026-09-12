@@ -1017,6 +1017,32 @@ function registerHandlers(bot, options = {}) {
     );
   });
 
+  bot.onText(/^\/ping$/, async (msg) => {
+    console.log(`[ping] received from ${msg.from?.id} chat ${msg.chat?.id}`);
+    try {
+      await bot.sendMessage(msg.chat.id, "pong", keyboardForRole(await getRole(msg)));
+      console.log(`[ping] sendMessage OK, message_id: sent`);
+    } catch (err) {
+      console.error(`[ping] sendMessage FAILED:`, err.message);
+    }
+  });
+
+  bot.onText(/^\/whoami$/, async (msg) => {
+    console.log(`[whoami] received from ${msg.from?.id}`);
+    const info = [
+      `from.id: ${msg.from?.id}`,
+      `chat.id: ${msg.chat?.id}`,
+      `chat.type: ${msg.chat?.type}`,
+      `text: ${msg.text}`,
+    ].join("\n");
+    try {
+      await bot.sendMessage(msg.chat.id, info, keyboardForRole(await getRole(msg)));
+      console.log(`[whoami] sendMessage OK`);
+    } catch (err) {
+      console.error(`[whoami] sendMessage FAILED:`, err.message);
+    }
+  });
+
   bot.onText(/^\/dbstatus$/, async (msg) => {
     const role = await getRole(msg);
     if (!(await requireImportAccess(bot, msg, role))) return;
