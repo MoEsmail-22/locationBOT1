@@ -112,8 +112,26 @@ async function waitForPendingHandlers(deadlineMs) {
   }
 }
 
-function validWebhookSecret(secret) {
-  return /^[A-Za-z0-9_-]{1,256}$/.test(String(secret || ""));
+function describeSecret(secret) {
+  if (!secret) return "(empty)";
+  const s = String(secret);
+  return `len=${s.length} prefix=${s.slice(0, 8)} suffix=${s.slice(-7)}`;
+}
+
+function getDebugParam(req) {
+  if (req.query && typeof req.query.debug !== "undefined") {
+    return String(req.query.debug);
+  }
+  try {
+    const url = String(req.url || "");
+    const qIndex = url.indexOf("?");
+    if (qIndex >= 0) {
+      const params = new URLSearchParams(url.slice(qIndex + 1));
+      const v = params.get("debug");
+      if (v !== null) return v;
+    }
+  } catch (_) {}
+  return null;
 }
 
 // Hard deadline for the whole handler. Tuned for the 60s `maxDuration` set in
@@ -125,6 +143,38 @@ const HANDLER_DEADLINE_MS = Number.parseInt(
 
 module.exports = async function handler(req, res) {
   if (req.method === "GET") {
+    const debug = getDebugParam(req);
+    if (debug === "1") {
+      const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+      const receivedSecret = req.headers["x-telegram-bot-api-secret-token"];
+      return res.status(200).json({
+        ok: true,
+        diagnostic: true,
+        expected: describeSecret(expectedSecret),
+        received: describeSecret(receivedSecret),
+        match: !!expectedSecret && expectedSecret === receivedSecret,
+        hasExpected: !!expectedSecret,
+        hasReceived: !!receivedSecret,
+        hasBotToken: !!process.env.BOT_TOKEN,
+        botTokenLen: String(process.env.BOT_TOKEN || "").length,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        deployment: process.env.VERCEL_ENV || "unknown",
+        region: process.env.VERCEL_REGION || "fra1",
+      });
+    }
+    if (debug === "getme") {
+      const token = process.env.BOT_TOKEN;
+      if (!token) {
+        return res.status(500).json({ ok: false, error: "BOT_TOKEN missing in Vercel" });
+      }
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+        const data = await r.json();
+        return res.status(200).json({ ok: true, diagnostic: "getme", status: r.status, result: data });
+      } catch (err) {
+        return res.status(500).json({ ok: false, error: String(err?.message || err) });
+      }
+    }
     return res.status(200).json({ ok: true, service: "telegram-webhook" });
   }
 
@@ -134,7 +184,7 @@ module.exports = async function handler(req, res) {
   }
 
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!validWebhookSecret(expectedSecret)) {
+  if (!expectedSecret) {
     console.error("[webhook] FATAL: TELEGRAM_WEBHOOK_SECRET env var is missing/empty in Vercel");
     console.error("[webhook] TELEGRAM_WEBHOOK_SECRET is missing or invalid");
     return res.status(500).json({ ok: false, error: "webhook_not_configured" });
