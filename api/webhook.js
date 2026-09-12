@@ -135,11 +135,17 @@ module.exports = async function handler(req, res) {
 
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!validWebhookSecret(expectedSecret)) {
+    console.error("[webhook] FATAL: TELEGRAM_WEBHOOK_SECRET env var is missing/empty in Vercel");
     console.error("[webhook] TELEGRAM_WEBHOOK_SECRET is missing or invalid");
     return res.status(500).json({ ok: false, error: "webhook_not_configured" });
   }
 
-  if (req.headers["x-telegram-bot-api-secret-token"] !== expectedSecret) {
+  const receivedSecret = req.headers["x-telegram-bot-api-secret-token"];
+  console.log(
+    `[webhook] secret check — expected len=${String(expectedSecret).length} prefix="${String(expectedSecret).slice(0, 8)}..." received len=${String(receivedSecret || "").length} prefix="${String(receivedSecret || "").slice(0, 8)}..."`,
+  );
+  if (receivedSecret !== expectedSecret) {
+    console.error("[webhook] 401 — secret mismatch. See prefix/length comparison above.");
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
