@@ -1,0 +1,223 @@
+DATA ANALYSIS TELEGRAM BOT - VERCEL WEBHOOK DEPLOYMENT
+=======================================================
+
+This guide deploys the webhook version of the bot.
+It does NOT use polling. Telegram will send messages directly to Vercel.
+
+IMPORTANT
+---------
+- Use the branch: codex/webhook-vercel
+- Do not share BOT_TOKEN, DATABASE_URL, or TELEGRAM_WEBHOOK_SECRET.
+- Do not commit the .env file.
+- When finished, do not run `npm start` for this bot locally. The Vercel
+  webhook will be the only active bot process.
+
+
+PART 1 - OPEN THE CORRECT PROJECT AND BRANCH
+--------------------------------------------
+1. Open PowerShell.
+
+2. Go to the old Data Analysis Bot folder:
+
+   cd "D:\Learnig Web\JS Jonase\React Js\worldwise\DataAnalysisTelegramBot"
+
+3. Download the new branch and switch to it:
+
+   git pull origin codex/webhook-vercel
+   git switch codex/webhook-vercel
+
+4. Optional: make sure you are on the correct branch:
+
+   git branch --show-current
+
+   The answer must be:
+
+   codex/webhook-vercel
+
+
+PART 2 - PREPARE THE FOUR VALUES YOU WILL ADD TO VERCEL
+--------------------------------------------------------
+Open the .env file inside this old bot folder. It already contains these
+three values:
+
+1. BOT_TOKEN
+   The Telegram token for the OLD Data Analysis Bot.
+   Do not use the Sales Bot token unless both projects intentionally use the
+   same Telegram bot.
+
+2. DATABASE_URL
+   The PostgreSQL connection string used by the old Data Analysis Bot.
+   It begins with postgresql://
+   Do NOT use the Supabase URL that begins with https://
+
+3. ADMIN_IDS
+   The Telegram IDs of the admins, separated by commas.
+   Example: 652732552,7702535989
+
+4. Create a new webhook secret. Run this command in PowerShell:
+
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+   Copy the generated value. This is TELEGRAM_WEBHOOK_SECRET.
+   Keep it private. You will use the SAME value in Vercel and in .env later.
+
+
+PART 3 - CREATE OR LINK THE VERCEL PROJECT
+-------------------------------------------
+1. Make sure you are still in the old bot folder:
+
+   cd "D:\Learnig Web\JS Jonase\React Js\worldwise\DataAnalysisTelegramBot"
+
+2. Start Vercel linking:
+
+   corepack pnpm dlx vercel@59.0.0 link
+
+3. Answer the questions:
+
+   - Set up and deploy? Yes
+   - Which scope? Choose your own Vercel account.
+   - Link to existing project? No, if this is the first Vercel project for
+     this old Data Analysis Bot.
+   - Project name? Choose a clear name, for example:
+     data-analysis-telegram-bot
+   - Directory? Press Enter because you are already inside the correct folder.
+
+4. This creates a local .vercel folder. It is ignored by Git and must not be
+   committed.
+
+
+PART 4 - ADD ENVIRONMENT VARIABLES IN VERCEL DASHBOARD
+-------------------------------------------------------
+1. Open https://vercel.com/dashboard
+
+2. Open the project you linked in Part 3.
+
+3. Open: Settings -> Environment Variables
+
+4. Add these variables ONE BY ONE. For every variable select Production.
+
+   Name:  BOT_TOKEN
+   Value: the old Data Analysis Bot Telegram token
+
+   Name:  DATABASE_URL
+   Value: the old Data Analysis Bot PostgreSQL connection string
+
+   Name:  ADMIN_IDS
+   Value: the old bot admin IDs, for example 652732552,7702535989
+
+   Name:  TELEGRAM_WEBHOOK_SECRET
+   Value: the random secret created in Part 2
+
+5. Confirm that all four variables show Environment: Production.
+   Their values should be hidden in Vercel.
+
+
+PART 5 - DEPLOY TO VERCEL
+-------------------------
+1. Return to PowerShell in the old bot folder.
+
+2. Deploy it:
+
+   corepack pnpm dlx vercel@59.0.0 --prod
+
+3. Wait until the command says Ready.
+
+4. Vercel displays two URLs. Use the stable URL after the word Aliased.
+   Example:
+
+   https://data-analysis-telegram-bot.vercel.app
+
+5. Open this URL in a browser and add /api/health to the end:
+
+   https://data-analysis-telegram-bot.vercel.app/api/health
+
+   Expected result:
+
+   {"ok":true,"database":"ready"}
+
+   If it says database unavailable, check DATABASE_URL in Vercel Settings ->
+   Environment Variables, then deploy again.
+
+
+PART 6 - REGISTER THE TELEGRAM WEBHOOK
+---------------------------------------
+1. Open the .env file in the old bot folder.
+
+2. Add these two lines at the end. Replace the example domain and secret:
+
+   WEBHOOK_URL=https://data-analysis-telegram-bot.vercel.app/api/webhook
+   TELEGRAM_WEBHOOK_SECRET=the_same_secret_from_vercel
+
+3. Save .env.
+
+4. In PowerShell, run:
+
+   npm run set-webhook
+
+5. Expected result:
+
+   Webhook set to: https://data-analysis-telegram-bot.vercel.app/api/webhook
+
+6. Send /start to the OLD Data Analysis Telegram Bot.
+   The bot should reply with its Arabic menu.
+
+
+PART 7 - IMPORTANT: STOP POLLING
+--------------------------------
+If the old bot is currently running locally using this command:
+
+   npm start
+
+stop it by focusing on its PowerShell window and pressing:
+
+   Ctrl + C
+
+Do not keep polling and webhooks running together. Telegram allows only one
+delivery method at a time. Running both can cause an ETELEGRAM 409 Conflict.
+
+
+AFTER EVERY FUTURE CODE UPDATE
+------------------------------
+1. Make your changes on the webhook branch.
+2. Test locally:
+
+   npm run check
+
+3. Deploy the update:
+
+   corepack pnpm dlx vercel@59.0.0 --prod
+
+4. You DO NOT need to run `npm run set-webhook` again if the stable Vercel
+   domain is unchanged.
+
+Run `npm run set-webhook` again only if:
+- the stable Vercel domain changed, OR
+- BOT_TOKEN changed, OR
+- TELEGRAM_WEBHOOK_SECRET changed.
+
+
+QUICK TROUBLESHOOTING
+---------------------
+1. Bot does not reply
+   - Open /api/health and confirm database is ready.
+   - Check that the stable URL was used in WEBHOOK_URL.
+   - Run npm run set-webhook again.
+   - Check Vercel -> Deployments -> Functions logs.
+
+2. Telegram messages do not reach the bot and Vercel logs show
+   webhook_not_configured
+   - Add TELEGRAM_WEBHOOK_SECRET in Vercel Production variables.
+   - Deploy again.
+
+3. Telegram returns 409 Conflict
+   - Stop npm start / any other polling process.
+   - Register the webhook again with npm run set-webhook.
+
+4. Vercel shows a build error
+   - Confirm the project root directory is:
+     DataAnalysisTelegramBot
+   - Confirm package.json and api/webhook.js are in that root.
+
+5. Excel uploads fail
+   - Confirm DATABASE_URL is the PostgreSQL connection string.
+   - Review Vercel function logs for the exact error.

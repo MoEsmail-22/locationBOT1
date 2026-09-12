@@ -1,0 +1,14 @@
+services:
+  - type: worker
+    name: telegram-sales-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_IDS
+        sync: false

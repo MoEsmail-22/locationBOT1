@@ -1,0 +1,173 @@
+DATA ANALYSIS TELEGRAM BOT - CREATE AND CONNECT A NEW SUPABASE PROJECT
+======================================================================
+
+Use a separate Supabase project for the Data Analysis Bot.
+Do NOT put this bot into the Sales Bot database. The two bots have different
+table designs. Keeping separate projects avoids table and user-access conflicts.
+
+IMPORTANT
+---------
+- Save the database password safely when you create the project.
+- Keep DATABASE_URL private. Never commit .env or paste it into GitHub.
+- DATABASE_URL begins with postgresql://
+- The Supabase project URL beginning with https:// is NOT DATABASE_URL.
+- A new project starts empty, so old customer records are not copied there
+  automatically.
+
+
+PART 1 - CREATE THE SUPABASE PROJECT
+------------------------------------
+1. Open https://supabase.com/dashboard
+
+2. Sign in and choose your organization.
+
+3. Click New project.
+
+4. Fill in the form:
+
+   Name: sales-customer-data (or another clear name)
+   Database password: create a strong password and save it safely
+   Region: choose the closest available region, normally Europe / Frankfurt
+           for Egypt if it is available
+
+5. Click Create new project.
+
+6. Wait until the project becomes Active.
+
+
+PART 2 - CREATE THE CUSTOMER DATA TABLES
+-----------------------------------------
+The webhook's health check now creates the access tables AND the
+customer_profiles table (with all indexes) automatically on first connect.
+You no longer need to run schema.sql manually.
+
+If you want to recreate the indexes or you are upgrading from an older
+deployment where customer_profiles was missing, run schema.sql in the
+Supabase SQL Editor as a one-time fix:
+
+1. Open the new Supabase project.
+2. Open SQL Editor from the left menu.
+3. Click New query.
+4. On your computer, open:
+
+   schema.sql
+
+5. Copy ALL text from that file.
+6. Paste it into the Supabase SQL Editor.
+7. Click Run and wait for success.
+
+
+PART 3 - GET THE POSTGRESQL CONNECTION STRING
+----------------------------------------------
+1. In the Supabase dashboard click Connect.
+
+2. Choose Transaction pooler.
+
+3. Copy the PostgreSQL connection string using port 6543. It looks similar to:
+
+   postgresql://postgres.PROJECT_REF:YOUR_PASSWORD@POOLER_HOST:6543/postgres
+
+4. Replace YOUR_PASSWORD if required.
+
+5. Save this complete private value. It is DATABASE_URL.
+
+Transaction pooler works well with Vercel's short-lived serverless functions.
+
+
+PART 4 - ADD DATABASE_URL TO VERCEL
+-----------------------------------
+1. Open https://vercel.com/dashboard.
+
+2. Open the Data Analysis Bot Vercel project.
+
+3. Go to Settings -> Environment Variables.
+
+4. Add this Production variable:
+
+   Name:  DATABASE_URL
+   Value: the private PostgreSQL Transaction pooler connection string
+
+5. Keep the existing Vercel variables too:
+
+   BOT_TOKEN
+   ADMIN_IDS
+   TELEGRAM_WEBHOOK_SECRET
+
+6. Deploy again after saving the variable:
+
+   cd "D:\Learnig Web\JS Jonase\React Js\worldwise\DataAnalysisTelegramBot"
+   corepack pnpm dlx vercel@59.0.0 --prod
+
+
+PART 5 - UPDATE THE LOCAL .env FILE
+------------------------------------
+1. Open this file locally:
+
+   D:\Learnig Web\JS Jonase\React Js\worldwise\DataAnalysisTelegramBot\.env
+
+2. Add or update:
+
+   DATABASE_URL=your_private_postgresql_connection_string
+
+3. Keep these existing values in .env:
+
+   BOT_TOKEN=...
+   ADMIN_IDS=...
+   TELEGRAM_WEBHOOK_SECRET=...
+   WEBHOOK_URL=https://your-data-analysis-bot.vercel.app/api/webhook
+
+4. Save .env. Never commit it.
+
+
+PART 6 - VERIFY AND LOAD CUSTOMER DATA
+---------------------------------------
+1. Open the health URL:
+
+   https://YOUR-DATA-ANALYSIS-BOT-DOMAIN/api/health
+
+2. Expected result:
+
+   {"ok":true,"database":"ready"}
+
+3. Send /start to the bot.
+
+4. An admin should upload the customer Excel sheet through Telegram.
+
+5. The bot will import the customer rows into customer_profiles.
+
+6. Test a phone number or customer name search.
+
+
+MOVING EXISTING CUSTOMER DATA TO A NEW PROJECT
+-----------------------------------------------
+If the old Data Analysis Bot already has customer data in another Supabase
+project, the easiest safe method is:
+
+1. Open the old bot.
+2. Use its admin option: تحميل نسخة من البيانات.
+3. Save the downloaded Excel file.
+4. Complete Parts 1 to 5 for the new Supabase project.
+5. Send the Excel file to the new deployed bot as an admin.
+6. The new bot imports all customer profiles.
+
+Do not delete the old database until you have tested searches on the new bot.
+
+
+COMMON ERRORS
+-------------
+1. password authentication failed
+   - DATABASE_URL password is wrong. Copy/reset the Supabase database password,
+     update Vercel, and deploy again.
+
+2. Customer upload says relation customer_profiles does not exist
+   - Run the complete Data Analysis Bot schema.sql in Supabase SQL Editor.
+
+3. Vercel cannot connect to database
+   - Use the Transaction pooler connection string on port 6543.
+   - Do not use the direct db.PROJECT_REF.supabase.co URL.
+
+4. Bot does not show old customer records
+   - A newly created Supabase project is empty.
+   - Export the old customer Excel data and upload it to the new bot as shown
+     in the moving-data section.
+
