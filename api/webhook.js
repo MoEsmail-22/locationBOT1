@@ -196,6 +196,13 @@ module.exports = async function handler(req, res) {
   );
   if (receivedSecret !== expectedSecret) {
     console.error("[webhook] 401 — secret mismatch. See prefix/length comparison above.");
+    try {
+      const b = req.body || {};
+      const uid = b.update_id ?? "unknown";
+      const fid = b.message?.from?.id ?? b.edited_message?.from?.id ?? b.callback_query?.from?.id ?? "?";
+      const txt = (b.message?.text || b.callback_query?.data || "").slice(0, 40);
+      console.error(`[webhook] 401 body — update ${uid} from ${fid} text="${txt}"`);
+    } catch (_) {}
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
